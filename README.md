@@ -16,7 +16,7 @@ make gtests
 ./build/gtests
 ```
 
-**Notes**: You may need to edit the Makefile depending on how you've built Googletest and FLINT. On OSX 14.3, I ran into issues with Clang and FLINT, and then again with gcc and the Homebrew version of Googletest.
+**Notes**: You may need to edit the Makefile depending on how you've built Googletest and FLINT. The Makefile included here works with Ubuntu 24.04. On OSX 14.3, I ran into issues with Clang and FLINT, and then again with gcc and the Homebrew version of Googletest. These were resolved by manually building Googletest. 
 
 ## Code Interface
 
