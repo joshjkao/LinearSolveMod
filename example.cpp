@@ -1,5 +1,6 @@
 #include "linsolvemod.h"
 #include "util.h"
+#include <climits>
 
 
 int main()
@@ -14,6 +15,10 @@ int main()
     };
     std::vector<long> rhs = {0,0,0,0,0,0};
     std::vector<long> moduli = {2,2,3,1,4,3};
+
+    mat = {{3,3,1,4,6,7},{0,1,0,0,4,9},{0,0,19,16,2,43},{0,0,0,3,7,6}};
+    rhs = {0,1,0,1};
+    moduli = {3,5,7,11};
 
     auto [soln, nulls] = LinSolveMod(mat, rhs, moduli);
 

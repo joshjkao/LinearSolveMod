@@ -37,7 +37,7 @@ std::vector<std::vector<T>> NullSpaceMultiMod(
 );
 ```
 
-The first one is the reimplementation of Mathematica's LinearSolveMod function. The second one is just a wrapper around the first.
+The first one is the reimplementation of Mathematica's LinearSolveMod function. The second one is a minor modification of the first.
 
 ## How it works
 

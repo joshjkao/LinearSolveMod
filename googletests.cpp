@@ -83,6 +83,18 @@ TEST(LINSOLVEMOD, SIXBYSIX) {
     }
 }
 
+TEST(LINSOLVEMOD, FOURBYSIX) {
+    std::vector<std::vector<arrtype>> mat = {{3,3,1,4,6,7},{0,1,0,0,4,9},{0,0,19,16,2,43},{0,0,0,3,7,6}};
+    std::vector<arrtype> rhs = {0,1,0,1};
+    std::vector<arrtype> moduli = {3,5,7,10};
+    
+    auto [soln, nulls] = LinSolveMod(mat, rhs, moduli);
+    EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
+    for (const auto& null: nulls) {
+        EXPECT_EQ(NullVector(mat.size()), MatMulMod(mat, null, moduli));
+    }
+}
+
 int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
