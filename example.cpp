@@ -1,6 +1,5 @@
 #include "linsolvemod.h"
 #include "util.h"
-#include <climits>
 
 
 int main()
