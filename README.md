@@ -2,21 +2,17 @@
 
 ## Running the code
 
-This project requires the [Fast Library for Number Theory (FLINT)](https://flintlib.org/). Optionally, the unit tests are run through [GoogleTest](https://github.com/google/googletest).
-
 The example can be compiled and run with:
 ```
 mkdir build
 make run
 ```
 
-The unit tests can be run with:
+With [GoogleTest](https://github.com/google/googletest) installed, the unit tests can be run with:
 ```
 make gtests
 ./build/gtests
 ```
-
-**Notes**: You may need to edit the Makefile depending on how you've built Googletest and FLINT. The Makefile included here works with Ubuntu 24.04. On OSX 14.3, I ran into issues with Clang and FLINT, and then again with gcc and the Homebrew version of Googletest. These were resolved by manually building Googletest. 
 
 ## Code Interface
 
