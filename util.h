@@ -8,11 +8,12 @@ template <typename T>
 std::ostream& operator<<(std::ostream& os, 
     const std::vector<T>& vec)
 {
-    os << "[";
+    os << "{";
     for (auto& v: vec | std::views::take(vec.size()-1)) {
-        os << v << ",";
+        os << static_cast<int>(v) << ",";
     }
-    os << vec.back() << "]";
+    if (!vec.empty()) os << static_cast<int>(vec.back());
+    os << "}";
     return os;
 }
 
@@ -21,11 +22,11 @@ template <typename T>
 std::ostream& operator<<(std::ostream& os, 
     const std::vector<std::vector<T>>& mat)
 {
-    os << "[";
+    os << "{";
     for (auto& m: mat | std::views::take(mat.size()-1)) {
-        os << m << "\n";
+        os << m << ",\n";
     }
-    os << mat.back() << "]";
+    os << mat.back() << "}";
     return os;
 }
 
