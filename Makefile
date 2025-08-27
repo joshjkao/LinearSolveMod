@@ -1,4 +1,4 @@
-CXX = g++
+CXX = g++-15
 CXXFLAGS = -Wall -Wextra -std=c++20
 
 BUILD_DIR = build
@@ -14,7 +14,10 @@ gtests: googletests.cpp
 debug: example.cpp
 	$(CXX) $(CXXFLAGS) -g -DDEBUG -o $(BUILD_DIR)/example example.cpp
 
-run: debug
+flint: example.cpp
+	$(CXX) $(CXXFLAGS) -g -DDEBUG -I/opt/homebrew/include -L/opt/homebrew/lib -o $(BUILD_DIR)/example example.cpp -lflint
+
+run: example
 	./$(BUILD_DIR)/example
 
 clean:
