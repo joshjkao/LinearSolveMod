@@ -61,7 +61,23 @@ std::vector<T> MatMulMod(
         for (size_t j = 0; j < mat[0].size(); ++j) {
             ret[i] += mat[i][j]*vec[j];
         }
-        ret[i] %= moduli[i];
+        if (moduli[i] != 0) ret[i] %= moduli[i];
+    }
+    return ret;
+}
+
+template <typename T>
+std::vector<T> MatMulMod(
+    const std::vector<std::vector<T>>& mat, 
+    const std::vector<T>& vec, 
+    const T& mod)
+{
+    std::vector<T> ret(mat.size(), 0);
+    for (size_t i = 0; i < mat.size(); ++i) {
+        for (size_t j = 0; j < mat[0].size(); ++j) {
+            ret[i] += mat[i][j]*vec[j];
+            ret[i] %= mod;
+        }
     }
     return ret;
 }

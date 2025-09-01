@@ -4,3 +4,5 @@ lib/
 old/
 .vscode/
 python/
+.cache/
+compile_commands.json
