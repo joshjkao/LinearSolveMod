@@ -1,17 +1,20 @@
 #pragma once
 #include <cmath>
-#include <flint/flint.h>
-#include <numeric>
 #include <ranges>
 #include <tuple>
 #include <vector>
 
+#include <flint/flint.h>
 #include <flint/fmpz.h>
 #include <flint/fmpz_mat.h>
+#include <flint/fmpz_mod.h>
+#include <flint/fmpz_mod_mat.h>
 
 #include "util.h"
 #include <iostream>
 #include <print>
+
+namespace LinSolveMod {
 
 // Solves the integer system of linear equations mat*x = rhs
 // modulo the values in "moduli". Returns a solution to the system
@@ -21,7 +24,8 @@ std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const std::vector<T> &moduli);
 
-// Solves the integer system modulo a single value
+// Solves the integer system modulo a single value using Gaussian
+// elimination
 template <typename T>
 std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
@@ -55,6 +59,16 @@ template <typename T> void XGCD(T &d, T &s, T &t, T a, T b) {
 	if (bneg)
 		t = -t;
 	d = a1;
+}
+
+template <typename T> T ModularInverse(T a, T m) {
+	T d, s, t;
+	XGCD(d, s, t, a, m);
+	if (d != 1)
+		return -1;
+	else {
+		return (s % m + m) % m;
+	}
 }
 
 // u = a*v % M
@@ -182,7 +196,7 @@ FLINT_HNF_PernetStein(const std::vector<std::vector<T>> &A_in) {
 		for (size_t j = 0; j < n; ++j)
 			fmpz_set_si(fmpz_mat_entry(A, i, j), A_in[i][j]);
 	flint_rand_t rand;
-	flint_randinit(rand);
+	flint_rand_init(rand);
 	fmpz_mat_hnf_pernet_stein(H, A, rand);
 	auto ret = std::vector<std::vector<T>>(m, std::vector<T>(n, 0));
 	for (size_t i = 0; i < m; ++i)
@@ -199,41 +213,33 @@ std::vector<T> HNF_AddColumn(const std::vector<std::vector<T>> &H1,
                              const std::vector<T> &a) {
 	size_t m = a.size();
 
-	std::vector<T> primes = {11, 13, 57};
-	auto big_mod =
-	    std::accumulate(primes.begin(), primes.end(), 1, std::multiplies<T>());
+	// todo: how to pick primes?
+	std::vector<T> primes = {17, 19, 23, 41, 53, 97, 89, 83};
 
-	std::vector<T> crt_acc(m, 0);
+	std::vector<T> X(m, 0);
+	T M = 1;
 
-	std::vector<std::vector<T>> solns(m, std::vector<T>(primes.size(), 0));
-
-	for (const auto &[i, p] : primes | std::views::enumerate) {
+	for (const auto &p : primes) {
 		auto [y, _] = LinSolveMod(A1, a, p);
 		if (y.empty()) {
 			std::cout << "[HNF_AddColumn] Prime " << p << " was singular\n";
 			continue;
 		}
+
 		auto x = MatMulMod(H1, y, p);
-		for (const auto &[j, xj] : x | std::views::enumerate) {
-			solns[j][i] = xj;
+
+		T M_new = M * p;
+		for (auto &&[xi, Xi] : std::views::zip(x, X)) {
+			T inv = ModularInverse(M, p);
+			if (inv == -1)
+				std::cout << "[HNF_AddColumn] ModularInverse doesn't exist\n";
+			T delta = ((xi - Xi) * ModularInverse(M, p)) % p;
+			Xi += M * delta;
 		}
+		M = M_new;
 	}
 
-	std::vector<std::vector<T>> equivalences(primes.size(),
-	                                         std::vector<T>(1, 1));
-
-	for (const auto &[i, row] : solns | std::views::enumerate) {
-		auto [xi, _] = LinSolveMod(equivalences, row, primes);
-		crt_acc[i] = xi[0];
-	}
-
-	for (auto &xi : crt_acc) {
-		if (xi > big_mod / 2) {
-			xi -= big_mod;
-		}
-	}
-
-	return crt_acc;
+	return X;
 }
 
 // Returns the HNF of A, given H1 is the HNF of the square nonsingular
@@ -262,16 +268,30 @@ HNF_AddColumns(const std::vector<std::vector<T>> &H1,
 			H[i][j + m] = x[i];
 		}
 	}
-	std::cout << H << "\n";
-
-	std::cout << H1 << "\n";
 
 	for (size_t i = 0; i < m; ++i)
 		for (size_t j = 0; j < m; ++j)
 			H[i][j] = H1[i][j];
-	std::cout << FLINT_HNF_PernetStein(A) << "\n";
-	std::cout << H << "\n";
+
 	return H;
+}
+
+template <typename T> T Det(const std::vector<std::vector<T>> &A) {
+	int n = A.size();
+	if (n == 1)
+		return A[0][0];
+	if (n == 2)
+		return A[0][0] * A[1][1] - A[0][1] * A[1][0];
+	T d = 0;
+	for (int c = 0; c < n; c++) {
+		auto m = std::vector<std::vector<T>>(n - 1, std::vector<T>(n - 1));
+		for (int i = 1; i < n; i++)
+			for (int j = 0, k = 0; j < n; j++)
+				if (j != c)
+					m[i - 1][k++] = A[i][j];
+		d += (c % 2 ? -1 : 1) * A[0][c] * Det(m);
+	}
+	return d;
 }
 
 template <typename T>
@@ -279,7 +299,7 @@ std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const std::vector<T> &moduli) {
 
-	auto num_zeros = std::count(moduli.begin(), moduli.end(), 0);
+	size_t num_zeros = std::count(moduli.begin(), moduli.end(), 0);
 	auto nonzero_moduli =
 	    moduli | std::views::filter([](auto e) { return e != 0; });
 
@@ -314,15 +334,32 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 		for (size_t j = 0; j < aug1_m; ++j)
 			aug1[i][j] = augmat[i][j];
 
+	std::vector<std::vector<T>> zero_block;
+	for (size_t i = 0; i < num_zeros; ++i) {
+		std::vector<T> zero_block_row;
+		for (size_t j = 0; j < num_zeros; ++j) {
+			zero_block_row.push_back(
+			    augmat[i + n + 1 - num_zeros][j + m - num_zeros]);
+		}
+		zero_block.push_back(zero_block_row);
+	}
+
+	if (num_zeros > 0) {
+		std::cout << augmat << "\n" << zero_block << "\n";
+	}
+
 	T d = 1;
+	if (num_zeros > 0)
+		d = Det(zero_block);
 	for (const auto &m : nonzero_moduli)
 		d *= m;
 
+#ifdef DEBUG
 	T d1 = d;
 	for (const auto &m : nonzero_moduli)
 		d1 /= m;
-
-#ifdef DEBUG
+	if (num_zeros > 0)
+		d1 /= Det(zero_block);
 	if (d1 != 1) {
 		std::cout << "[LinSolveMod] Possible Overflow!\n";
 	}
@@ -331,6 +368,7 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 	std::vector<std::vector<T>> H1, H;
 
 	H1 = HNF_Modular(aug1, d);
+
 	if (num_zeros > 0) {
 		H = HNF_AddColumns(H1, augmat);
 	} else {
@@ -371,83 +409,79 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 }
 
 template <typename T>
+std::vector<std::vector<T>> RREF_Modular(std::vector<std::vector<T>> &mat,
+                                         const T &mod) {
+	std::cout << mat << "\n";
+	size_t m = mat.size();
+	size_t n = mat[0].size();
+
+	fmpz_mat_t a;
+	fmpz_mat_init(a, m, n);
+
+	for (size_t i = 0; i < m; ++i) {
+		for (size_t j = 0; j < n; ++j) {
+			fmpz_set_si(fmpz_mat_entry(a, i, j), mat[i][j]);
+		}
+	}
+
+	fmpz_mod_ctx_t ctx;
+	fmpz_mod_ctx_init_ui(ctx, mod);
+
+	fmpz_mod_mat_t A;
+	fmpz_mod_mat_init(A, m, n, ctx);
+
+	fmpz_mod_mat_set_fmpz_mat(A, a, ctx);
+
+	fmpz_mod_mat_t R;
+	fmpz_mod_mat_init(R, m, n, ctx);
+
+	fmpz_mod_mat_rref(R, A, ctx);
+
+	fmpz_mod_mat_get_fmpz_mat(a, R, ctx);
+
+	std::vector<std::vector<T>> ret(m, std::vector<T>(n, 0));
+
+	for (size_t i = 0; i < m; ++i) {
+		for (size_t j = 0; j < n; ++j) {
+			ret[i][j] = fmpz_get_si(fmpz_mat_entry(a, i, j));
+		}
+	}
+
+	fmpz_mat_clear(a);
+	fmpz_mod_mat_clear(A, ctx);
+	fmpz_mod_mat_clear(R, ctx);
+	fmpz_mod_ctx_clear(ctx);
+
+	return ret;
+}
+
+template <typename T>
 std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const T &modulus) {
 
 	size_t m = mat.size();
 	size_t n = mat[0].size();
-	size_t augmat_m = m + n + 1;
-	size_t augmat_n = m + n + 1;
 
-	auto augmat =
-	    std::vector<std::vector<T>>(augmat_m, std::vector<T>(augmat_n, 0));
-
-	// -rhs
-	for (size_t j = 0; j < m; ++j)
-		augmat[0][j] = -rhs[j];
-	// row join with mat transpose
-	for (size_t i = 0; i < m; ++i) {
-		for (size_t j = 0; j < n; ++j) {
-			augmat[j + 1][i] = mat[i][j];
-		}
-	}
-	// row join with moduli diagonal
+	std::vector<std::vector<T>> augmat(m, std::vector<T>(n + 1, 0));
 	for (size_t i = 0; i < m; ++i)
-		augmat[1 + n + i][i] = modulus;
-	// column join with identity
-	for (size_t i = 0; i < n + 1; ++i)
-		augmat[i][m + i] = 1;
-
-	std::vector<std::vector<T>> H;
-
-	T big_mod = 1;
+		for (size_t j = 0; j < n; ++j)
+			augmat[i][j] = mat[i][j];
 	for (size_t i = 0; i < m; ++i)
-		big_mod *= modulus;
+		augmat[i][n] = rhs[i];
+	std::cout << augmat << "\n";
 
-	#ifdef DEBUG
-	T mod1 = big_mod;
+	auto rref = RREF_Modular(augmat, modulus);
+
+	std::vector<T> ret(m, 0);
+
 	for (size_t i = 0; i < m; ++i) {
-		mod1 /= modulus;
-	}
-	if (mod1 != 1) {
-		std::cout << "[LinSolveMod (single modulus)] Possible Overflow!\n";
-	}
-	#endif
-
-	H = HNF_Modular(augmat, big_mod);
-	
-	std::vector<T> soln;
-	for (size_t i = 0; i < augmat_m; ++i) {
-		bool isSoln = true;
-		for (size_t j = 0; j < m; j++) {
-			if (H[i][j] != 0)
-				isSoln = false;
-		}
-		if (isSoln && H[i][m] == 1) {
-			for (size_t j = m + 1; j < m + n + 1; ++j) {
-				soln.push_back(H[i][j]);
-			}
-		}
+		if (rref[i][i] != 1)
+			return {{}, {}};
+		ret[i] = rref[i][n];
 	}
 
-	std::vector<std::vector<T>> nulls;
-	for (size_t i = 0; i < augmat_m; ++i) {
-		bool isNull = true;
-		for (size_t j = 0; j < m + 1; ++j) {
-			if (H[i][j] != 0)
-				isNull = false;
-		}
-		if (isNull) {
-			std::vector<T> null;
-			for (size_t j = m + 1; j < m + n + 1; ++j) {
-				null.push_back(H[i][j]);
-			}
-			nulls.push_back(null);
-		}
-	}
-
-	return {soln, nulls};
+	return {ret, {}};
 }
 
 // Returns a list of vectors spanning the null space of mat.
@@ -514,6 +548,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 			nulls.push_back(null);
 		}
 	}
-
 	return {nulls};
 }
+
+} // namespace LinSolveMod

@@ -2,6 +2,7 @@
 #include "util.h"
 
 using ttype = long;
+namespace LSM = LinSolveMod;
 
 int main() {
     std::vector<std::vector<ttype>> mat = {
@@ -15,11 +16,14 @@ int main() {
     std::vector<ttype> rhs = {0,0,1,0,0,0};
     std::vector<ttype> moduli = {2,2,3,3,0,0};
 
-    mat = {{3,3,1,7},{0,1,0,4},{0,0,19,13},{5,3,17,1}};
-    rhs = {0,1,0,1};
-    moduli = {3,5,0,0};
+    // mat = {{3,3,1,7},{0,1,0,4},{5,0,2,1},{5,3,1,1}};
+    // rhs = {0,1,0,1};
+    // moduli = {3,0,0,0};
+    // mat = {{3,3,1,7},{0,1,0,4},{5,0,2,1}};
+    // rhs = {0,1,0};
+    // moduli = {3,0,0};
 
-    auto [soln, nulls] = LinSolveMod(mat, rhs, moduli);
+    auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
 
     std::cout << "solution:\n" << soln << "\n";
     std::cout << "nulls:\n" << nulls << "\n\n";
