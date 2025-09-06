@@ -8,7 +8,7 @@
 #include <flint/fmpz_mod_mat.h>
 
 // Wrappers for FLINT functions
-// (mostly for testing)
+// (mostly for debugging)
 
 template <typename T>
 std::vector<std::vector<T>>

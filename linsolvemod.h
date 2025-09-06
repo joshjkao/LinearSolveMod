@@ -24,12 +24,19 @@ std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const std::vector<T> &moduli);
 
-// Solves the integer system modulo a single value using Gaussian
-// elimination
+// Solves the integer system of linear equations mat*x = rhs
+// modulo a single value. Currently, does not return the null space of mat.
 template <typename T>
 std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const T &moduli);
+
+// Returns a list of vectors spanning the null space of mat,
+// whos columns are vectors are defined modulo the values in "moduli".
+template <typename T>
+std::vector<std::vector<T>>
+NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
+                  const std::vector<T> &moduli);
 
 // Helper math functions
 template <typename T> void XGCD(T &d, T &s, T &t, T a, T b) {
@@ -56,15 +63,18 @@ template <typename T> void XGCD(T &d, T &s, T &t, T a, T b) {
 		t = -t;
 	d = a1;
 }
+
 template <typename T> inline T fdiv(const T a, const T b) {
 	return floor((double)a / b);
 }
+
 template <typename T> inline T PositiveMod(const T &a, const T &p) {
 	T ret = a % p;
 	if (ret < 0)
 		ret += p;
 	return ret;
 }
+
 template <typename T> T ModularInverse(T a, T m) {
 	T d, s, t;
 	XGCD(d, s, t, a, m);
@@ -74,6 +84,7 @@ template <typename T> T ModularInverse(T a, T m) {
 		return (s % m + m) % m;
 	}
 }
+
 template <typename T>
 std::vector<T> MatMulMod(const std::vector<std::vector<T>> &mat,
                          const std::vector<T> &vec,
@@ -88,6 +99,7 @@ std::vector<T> MatMulMod(const std::vector<std::vector<T>> &mat,
 	}
 	return ret;
 }
+
 template <typename T>
 std::vector<T> MatMulMod(const std::vector<std::vector<T>> &mat,
                          const std::vector<T> &vec, const T &mod) {
@@ -100,6 +112,7 @@ std::vector<T> MatMulMod(const std::vector<std::vector<T>> &mat,
 	}
 	return ret;
 }
+
 template <typename T> T Det(const std::vector<std::vector<T>> &A) {
 	int n = A.size();
 	if (n == 1)
@@ -117,6 +130,7 @@ template <typename T> T Det(const std::vector<std::vector<T>> &A) {
 	}
 	return d;
 }
+
 template <typename T>
 std::vector<std::vector<T>> RREF_Modular(std::vector<std::vector<T>> &A,
                                          const T &mod) {
@@ -172,6 +186,7 @@ void HNF_FixDiag(std::vector<T> &u, const T &a, const std::vector<T> &v,
 		u[i] = (a * v[i]) % M;
 	}
 }
+
 template <typename T>
 void HNF_ReduceW(std::vector<T> &u, const T &a, const std::vector<T> &v,
                  const T &M, size_t m) {
@@ -179,6 +194,7 @@ void HNF_ReduceW(std::vector<T> &u, const T &a, const std::vector<T> &v,
 		u[i] = (u[i] - a * v[i]) % M;
 	}
 }
+
 template <typename T>
 void HNF_EuclUpdate(std::vector<T> &u, std::vector<T> &v, const T &a,
                     const T &b, const T &c, const T &d, const T &M) {
@@ -211,7 +227,7 @@ void HNF_EuclUpdate(std::vector<T> &u, std::vector<T> &v, const T &a,
 }
 
 // Compute the row-style Hermite Normal Form of A_in, where
-// D_in is the determinant of the lattice spanned by A_in
+// D_in is a multiple of the determinant of the lattice spanned by A_in
 // This code adapted from NTL's implementation
 template <typename T>
 std::vector<std::vector<T>> HNF_Modular(const std::vector<std::vector<T>> &A_in,
@@ -308,6 +324,7 @@ std::vector<T> HNF_AddColumn(const std::vector<std::vector<T>> &H1,
 
 // Returns the HNF of A, given H1 is the HNF of the square nonsingular
 // submatrix given by the first m columns of A.
+// Uses CRT reconstruction to transform the extra columns.
 template <typename T>
 std::vector<std::vector<T>>
 HNF_AddColumns(const std::vector<std::vector<T>> &H1,
@@ -471,7 +488,6 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 	return {ret, {}};
 }
 
-// Returns a list of vectors spanning the null space of mat.
 template <typename T>
 std::vector<std::vector<T>>
 NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
@@ -482,7 +498,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 
 	size_t m = mat.size();
 	size_t n = mat[0].size();
-	size_t augmat_m = m + n;
+	size_t augmat_m = m + n - num_zeros;
 	size_t augmat_n = m + n;
 	size_t aug1_m = augmat_m;
 
@@ -498,7 +514,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 		}
 	}
 	// row join with moduli diagonal
-	for (size_t i = 0; i < moduli.size(); ++i) {
+	for (size_t i = 0; i < moduli.size() - num_zeros; ++i) {
 		augmat[n + i][i] = moduli[i];
 	}
 	// column join with identity
@@ -515,7 +531,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 		std::vector<T> zero_block_row;
 		for (size_t j = 0; j < num_zeros; ++j) {
 			zero_block_row.push_back(
-			    augmat[i + n + 1 - num_zeros][j + m - num_zeros]);
+			    augmat[i + n - num_zeros][j + m - num_zeros]);
 		}
 		zero_block.push_back(zero_block_row);
 	}
@@ -528,7 +544,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 
 #ifdef DEBUG
 	T d1 = d;
-	for (const auto &m : moduli)
+	for (const auto &m : nonzero_moduli)
 		d1 /= m;
 	if (num_zeros > 0)
 		d1 /= Det(zero_block);
@@ -538,11 +554,23 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 
 	H1 = HNF_Modular(aug1, d);
 
+#ifdef DEBUG
+	std::cout << aug1 << "\n";
+	std::cout << "determinant: " << d << "\n";
+	std::cout << H1 << "\n" << FLINT_HNF_PernetStein(aug1) << "\n";
+#endif
+
 	if (num_zeros > 0) {
 		H = HNF_AddColumns(H1, augmat);
 	} else {
 		H = std::move(H1);
 	}
+
+#ifdef DEBUG
+	std::cout << "my hnf\n"
+	          << H << "\nflint hnf\n"
+	          << FLINT_HNF_PernetStein(augmat) << "\n";
+#endif
 
 	std::vector<std::vector<T>> nulls;
 
