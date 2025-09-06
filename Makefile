@@ -15,11 +15,11 @@ debug: example.cpp
 	$(CXX) $(CXXFLAGS) -g -DDEBUG -o $(BUILD_DIR)/example example.cpp
 
 flint: example.cpp
-	$(CXX) $(CXXFLAGS) -g -DDEBUG -I/opt/homebrew/include -L/opt/homebrew/lib -o $(BUILD_DIR)/example example.cpp -lflint
+	$(CXX) $(CXXFLAGS) -g -DDEBUG -DFLINT -I/opt/homebrew/include -L/opt/homebrew/lib -o $(BUILD_DIR)/example example.cpp -lflint
 
 run: example
 	./$(BUILD_DIR)/example
 
 clean:
-	rm -f $(BUILD_DIR)/*
+	rm -rf $(BUILD_DIR)/*
 

@@ -1,18 +1,18 @@
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <ranges>
 #include <tuple>
 #include <vector>
 
-#include <flint/flint.h>
-#include <flint/fmpz.h>
-#include <flint/fmpz_mat.h>
-#include <flint/fmpz_mod.h>
-#include <flint/fmpz_mod_mat.h>
-
+#ifdef DEBUG
 #include "util.h"
 #include <iostream>
-#include <print>
+#endif
+
+#ifdef FLINT
+#include "flint_helpers.h"
+#endif
 
 namespace LinSolveMod {
 
@@ -31,11 +31,7 @@ std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const T &moduli);
 
-template <typename T> inline T fdiv(const T a, const T b) {
-	return floor((double)a / b);
-}
-
-// Euclid extended algorithm
+// Helper math functions
 template <typename T> void XGCD(T &d, T &s, T &t, T a, T b) {
 	s = 1, t = 0;
 	bool aneg = false, bneg = false;
@@ -60,7 +56,15 @@ template <typename T> void XGCD(T &d, T &s, T &t, T a, T b) {
 		t = -t;
 	d = a1;
 }
-
+template <typename T> inline T fdiv(const T a, const T b) {
+	return floor((double)a / b);
+}
+template <typename T> inline T PositiveMod(const T &a, const T &p) {
+	T ret = a % p;
+	if (ret < 0)
+		ret += p;
+	return ret;
+}
 template <typename T> T ModularInverse(T a, T m) {
 	T d, s, t;
 	XGCD(d, s, t, a, m);
@@ -70,28 +74,114 @@ template <typename T> T ModularInverse(T a, T m) {
 		return (s % m + m) % m;
 	}
 }
-
-// u = a*v % M
 template <typename T>
-void FixDiag(std::vector<T> &u, const T &a, const std::vector<T> &v, const T &M,
-             size_t m) {
+std::vector<T> MatMulMod(const std::vector<std::vector<T>> &mat,
+                         const std::vector<T> &vec,
+                         const std::vector<T> &moduli) {
+	std::vector<T> ret(mat.size(), 0);
+	for (size_t i = 0; i < mat.size(); ++i) {
+		for (size_t j = 0; j < mat[0].size(); ++j) {
+			ret[i] += mat[i][j] * vec[j];
+		}
+		if (moduli[i] != 0)
+			ret[i] %= moduli[i];
+	}
+	return ret;
+}
+template <typename T>
+std::vector<T> MatMulMod(const std::vector<std::vector<T>> &mat,
+                         const std::vector<T> &vec, const T &mod) {
+	std::vector<T> ret(mat.size(), 0);
+	for (size_t i = 0; i < mat.size(); ++i) {
+		for (size_t j = 0; j < mat[0].size(); ++j) {
+			ret[i] += mat[i][j] * vec[j];
+			ret[i] %= mod;
+		}
+	}
+	return ret;
+}
+template <typename T> T Det(const std::vector<std::vector<T>> &A) {
+	int n = A.size();
+	if (n == 1)
+		return A[0][0];
+	if (n == 2)
+		return A[0][0] * A[1][1] - A[0][1] * A[1][0];
+	T d = 0;
+	for (int c = 0; c < n; c++) {
+		auto m = std::vector<std::vector<T>>(n - 1, std::vector<T>(n - 1));
+		for (int i = 1; i < n; i++)
+			for (int j = 0, k = 0; j < n; j++)
+				if (j != c)
+					m[i - 1][k++] = A[i][j];
+		d += (c % 2 ? -1 : 1) * A[0][c] * Det(m);
+	}
+	return d;
+}
+template <typename T>
+std::vector<std::vector<T>> RREF_Modular(std::vector<std::vector<T>> &A,
+                                         const T &mod) {
+	size_t m = A.size();
+	if (m == 0)
+		return A;
+	size_t n = A[0].size();
+
+	auto mat = A;
+
+	size_t row = 0;
+	for (size_t col = 0; col < n && row < m; ++col) {
+		// identify pivot and swap if necessary
+		// if no pivot, skip this column
+		auto pivot =
+		    std::ranges::find_if(mat | std::views::drop(row),
+		                         [&](auto r) { return r[col] % mod != 0; });
+		if (pivot == mat.end())
+			continue;
+		std::swap(*pivot, mat[row]);
+
+		// reduce this row
+		T inv = ModularInverse(mat[row][col] % mod, mod);
+		if (inv == -1)
+			continue;
+		for (size_t j = col; j < n; ++j) {
+			mat[row][j] = PositiveMod(mat[row][j] * inv, mod);
+		}
+
+		// eliminate above and below pivot
+		for (size_t i = 0; i < m; ++i) {
+			if (i == row)
+				continue;
+			T factor = mat[i][col];
+			if (factor != 0) {
+				for (size_t j = 0; j < n; ++j) {
+					mat[i][j] =
+					    PositiveMod(mat[i][j] - factor * mat[row][j], mod);
+				}
+			}
+		}
+		++row;
+	}
+
+	return mat;
+}
+
+// HNF Helper Functions
+template <typename T>
+void HNF_FixDiag(std::vector<T> &u, const T &a, const std::vector<T> &v,
+                 const T &M, size_t m) {
 	for (size_t i = 0; i < m; i++) {
 		u[i] = (a * v[i]) % M;
 	}
 }
-
-// u = (u - a*v) % M
 template <typename T>
-void ReduceW(std::vector<T> &u, const T &a, const std::vector<T> &v, const T &M,
-             size_t m) {
+void HNF_ReduceW(std::vector<T> &u, const T &a, const std::vector<T> &v,
+                 const T &M, size_t m) {
 	for (size_t i = 0; i < m; i++) {
 		u[i] = (u[i] - a * v[i]) % M;
 	}
 }
-
 template <typename T>
-void EuclUpdate(std::vector<T> &u, std::vector<T> &v, const T &a, const T &b,
-                const T &c, const T &d, const T &M) {
+void HNF_EuclUpdate(std::vector<T> &u, std::vector<T> &v, const T &a,
+                    const T &b, const T &c, const T &d, const T &M) {
 	size_t m = u.size();
 
 	T M1 = M >> 1;
@@ -153,18 +243,18 @@ std::vector<std::vector<T>> HNF_Modular(const std::vector<std::vector<T>> &A_in,
 				c1 = fdiv(A[k][i], d);
 				c2 = fdiv(A[j][i], d);
 				c2 = -c2;
-				EuclUpdate(A[j], A[k], c1, c2, v, u, D);
+				HNF_EuclUpdate(A[j], A[k], c1, c2, v, u, D);
 			}
 		}
 
 		XGCD(d, u, v, A[k][i], D);
-		FixDiag(W[i], u, A[k], D, i + 1);
+		HNF_FixDiag(W[i], u, A[k], D, i + 1);
 		if (W[i][i] == 0)
 			W[i][i] = D;
 
 		for (j = i + 1; j < m; j++) {
 			c1 = fdiv(W[j][i], W[i][i]);
-			ReduceW(W[j], c1, W[i], D, i + 1);
+			HNF_ReduceW(W[j], c1, W[i], D, i + 1);
 		}
 
 		D = fdiv(D, d);
@@ -185,29 +275,6 @@ std::vector<std::vector<T>> HNF_Modular(const std::vector<std::vector<T>> &A_in,
 }
 
 template <typename T>
-std::vector<std::vector<T>>
-FLINT_HNF_PernetStein(const std::vector<std::vector<T>> &A_in) {
-	size_t m = A_in.size();
-	size_t n = A_in[0].size();
-	fmpz_mat_t A, H;
-	fmpz_mat_init(A, m, n);
-	fmpz_mat_init(H, m, n);
-	for (size_t i = 0; i < m; ++i)
-		for (size_t j = 0; j < n; ++j)
-			fmpz_set_si(fmpz_mat_entry(A, i, j), A_in[i][j]);
-	flint_rand_t rand;
-	flint_rand_init(rand);
-	fmpz_mat_hnf_pernet_stein(H, A, rand);
-	auto ret = std::vector<std::vector<T>>(m, std::vector<T>(n, 0));
-	for (size_t i = 0; i < m; ++i)
-		for (size_t j = 0; j < n; ++j)
-			ret[i][j] = fmpz_get_si(fmpz_mat_entry(H, i, j));
-	fmpz_mat_clear(A);
-	fmpz_mat_clear(H);
-	return ret;
-}
-
-template <typename T>
 std::vector<T> HNF_AddColumn(const std::vector<std::vector<T>> &H1,
                              const std::vector<std::vector<T>> &A1,
                              const std::vector<T> &a) {
@@ -222,7 +289,6 @@ std::vector<T> HNF_AddColumn(const std::vector<std::vector<T>> &H1,
 	for (const auto &p : primes) {
 		auto [y, _] = LinSolveMod(A1, a, p);
 		if (y.empty()) {
-			std::cout << "[HNF_AddColumn] Prime " << p << " was singular\n";
 			continue;
 		}
 
@@ -231,9 +297,7 @@ std::vector<T> HNF_AddColumn(const std::vector<std::vector<T>> &H1,
 		T M_new = M * p;
 		for (auto &&[xi, Xi] : std::views::zip(x, X)) {
 			T inv = ModularInverse(M, p);
-			if (inv == -1)
-				std::cout << "[HNF_AddColumn] ModularInverse doesn't exist\n";
-			T delta = ((xi - Xi) * ModularInverse(M, p)) % p;
+			T delta = ((xi - Xi) * inv) % p;
 			Xi += M * delta;
 		}
 		M = M_new;
@@ -276,30 +340,12 @@ HNF_AddColumns(const std::vector<std::vector<T>> &H1,
 	return H;
 }
 
-template <typename T> T Det(const std::vector<std::vector<T>> &A) {
-	int n = A.size();
-	if (n == 1)
-		return A[0][0];
-	if (n == 2)
-		return A[0][0] * A[1][1] - A[0][1] * A[1][0];
-	T d = 0;
-	for (int c = 0; c < n; c++) {
-		auto m = std::vector<std::vector<T>>(n - 1, std::vector<T>(n - 1));
-		for (int i = 1; i < n; i++)
-			for (int j = 0, k = 0; j < n; j++)
-				if (j != c)
-					m[i - 1][k++] = A[i][j];
-		d += (c % 2 ? -1 : 1) * A[0][c] * Det(m);
-	}
-	return d;
-}
-
 template <typename T>
 std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const std::vector<T> &moduli) {
 
-	size_t num_zeros = std::count(moduli.begin(), moduli.end(), 0);
+	size_t num_zeros = std::ranges::count(moduli, 0);
 	auto nonzero_moduli =
 	    moduli | std::views::filter([](auto e) { return e != 0; });
 
@@ -344,10 +390,6 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 		zero_block.push_back(zero_block_row);
 	}
 
-	if (num_zeros > 0) {
-		std::cout << augmat << "\n" << zero_block << "\n";
-	}
-
 	T d = 1;
 	if (num_zeros > 0)
 		d = Det(zero_block);
@@ -372,115 +414,60 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 	if (num_zeros > 0) {
 		H = HNF_AddColumns(H1, augmat);
 	} else {
-		H = H1;
+		H = std::move(H1);
 	}
 
+	namespace rng = std::ranges;
+
 	std::vector<T> soln;
-	for (size_t i = 0; i < augmat_m; ++i) {
-		bool isSoln = true;
-		for (size_t j = 0; j < m; j++) {
-			if (H[i][j] != 0)
-				isSoln = false;
-		}
-		if (isSoln && H[i][m] == 1) {
-			for (size_t j = m + 1; j < m + n + 1; ++j) {
-				soln.push_back(H[i][j]);
-			}
+	auto is_soln_row = [&](const auto &row) {
+		return rng::all_of(row | rng::views::take(m),
+		                   [](auto e) { return e == 0; }) &&
+		       row[m] == 1;
+	};
+	auto soln_it = rng::find_if(H, is_soln_row);
+	if (soln_it != H.end()) {
+		for (const auto &e : *soln_it | rng::views::drop(m + 1)) {
+			soln.push_back(e);
 		}
 	}
 
 	std::vector<std::vector<T>> nulls;
-	for (size_t i = 0; i < augmat_m; ++i) {
-		bool isNull = true;
-		for (size_t j = 0; j < m + 1; ++j) {
-			if (H[i][j] != 0)
-				isNull = false;
+	auto is_null_row = [&](const auto &row) {
+		return rng::all_of(row | rng::views::take(m + 1),
+		                   [](auto e) { return e == 0; });
+	};
+	auto null_rows = rng::views::filter(H, is_null_row);
+	for (const auto &row : null_rows) {
+		std::vector<T> null;
+		for (const auto &e : row | rng::views::drop(m + 1)) {
+			null.push_back(e);
 		}
-		if (isNull) {
-			std::vector<T> null;
-			for (size_t j = m + 1; j < m + n + 1; ++j) {
-				null.push_back(H[i][j]);
-			}
-			nulls.push_back(null);
-		}
+		nulls.push_back(null);
 	}
 
 	return {soln, nulls};
 }
 
 template <typename T>
-std::vector<std::vector<T>> RREF_Modular(std::vector<std::vector<T>> &mat,
-                                         const T &mod) {
-	std::cout << mat << "\n";
-	size_t m = mat.size();
-	size_t n = mat[0].size();
-
-	fmpz_mat_t a;
-	fmpz_mat_init(a, m, n);
-
-	for (size_t i = 0; i < m; ++i) {
-		for (size_t j = 0; j < n; ++j) {
-			fmpz_set_si(fmpz_mat_entry(a, i, j), mat[i][j]);
-		}
-	}
-
-	fmpz_mod_ctx_t ctx;
-	fmpz_mod_ctx_init_ui(ctx, mod);
-
-	fmpz_mod_mat_t A;
-	fmpz_mod_mat_init(A, m, n, ctx);
-
-	fmpz_mod_mat_set_fmpz_mat(A, a, ctx);
-
-	fmpz_mod_mat_t R;
-	fmpz_mod_mat_init(R, m, n, ctx);
-
-	fmpz_mod_mat_rref(R, A, ctx);
-
-	fmpz_mod_mat_get_fmpz_mat(a, R, ctx);
-
-	std::vector<std::vector<T>> ret(m, std::vector<T>(n, 0));
-
-	for (size_t i = 0; i < m; ++i) {
-		for (size_t j = 0; j < n; ++j) {
-			ret[i][j] = fmpz_get_si(fmpz_mat_entry(a, i, j));
-		}
-	}
-
-	fmpz_mat_clear(a);
-	fmpz_mod_mat_clear(A, ctx);
-	fmpz_mod_mat_clear(R, ctx);
-	fmpz_mod_ctx_clear(ctx);
-
-	return ret;
-}
-
-template <typename T>
 std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const T &modulus) {
-
 	size_t m = mat.size();
 	size_t n = mat[0].size();
-
 	std::vector<std::vector<T>> augmat(m, std::vector<T>(n + 1, 0));
 	for (size_t i = 0; i < m; ++i)
 		for (size_t j = 0; j < n; ++j)
 			augmat[i][j] = mat[i][j];
 	for (size_t i = 0; i < m; ++i)
 		augmat[i][n] = rhs[i];
-	std::cout << augmat << "\n";
-
 	auto rref = RREF_Modular(augmat, modulus);
-
 	std::vector<T> ret(m, 0);
-
 	for (size_t i = 0; i < m; ++i) {
 		if (rref[i][i] != 1)
 			return {{}, {}};
 		ret[i] = rref[i][n];
 	}
-
 	return {ret, {}};
 }
 
@@ -489,10 +476,17 @@ template <typename T>
 std::vector<std::vector<T>>
 NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
                   const std::vector<T> &moduli) {
+	size_t num_zeros = std::ranges::count(moduli, 0);
+	auto nonzero_moduli =
+	    moduli | std::views::filter([](auto e) { return e != 0; });
+
 	size_t m = mat.size();
 	size_t n = mat[0].size();
 	size_t augmat_m = m + n;
 	size_t augmat_n = m + n;
+	size_t aug1_m = augmat_m;
+
+	auto aug1 = std::vector<std::vector<T>>(aug1_m, std::vector<T>(aug1_m, 0));
 
 	auto augmat =
 	    std::vector<std::vector<T>>(augmat_m, std::vector<T>(augmat_n, 0));
@@ -511,43 +505,61 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 	for (size_t i = 0; i < n; ++i) {
 		augmat[i][m + i] = 1;
 	}
+	// take a square nonsingular submatrix
+	for (size_t i = 0; i < aug1_m; ++i)
+		for (size_t j = 0; j < aug1_m; ++j)
+			aug1[i][j] = augmat[i][j];
+
+	std::vector<std::vector<T>> zero_block;
+	for (size_t i = 0; i < num_zeros; ++i) {
+		std::vector<T> zero_block_row;
+		for (size_t j = 0; j < num_zeros; ++j) {
+			zero_block_row.push_back(
+			    augmat[i + n + 1 - num_zeros][j + m - num_zeros]);
+		}
+		zero_block.push_back(zero_block_row);
+	}
 
 	T d = 1;
-	for (const auto &m : moduli)
+	if (num_zeros > 0)
+		d = Det(zero_block);
+	for (const auto &m : nonzero_moduli)
 		d *= m;
 
+#ifdef DEBUG
 	T d1 = d;
 	for (const auto &m : moduli)
 		d1 /= m;
+	if (num_zeros > 0)
+		d1 /= Det(zero_block);
+#endif
 
-	std::vector<std::vector<T>> H;
+	std::vector<std::vector<T>> H1, H;
 
-	if (d == 0) {
-		// rectangular matrix: use pernet stein
-		H = FLINT_HNF_PernetStein(augmat);
-	} else if (d1 != 1) {
-		// possible overflow, use flint types
-		H = FLINT_HNF_Modular(augmat, d);
+	H1 = HNF_Modular(aug1, d);
+
+	if (num_zeros > 0) {
+		H = HNF_AddColumns(H1, augmat);
 	} else {
-		// use native types
-		H = HNF_Modular(augmat, d);
+		H = std::move(H1);
 	}
 
 	std::vector<std::vector<T>> nulls;
-	for (size_t i = 0; i < augmat_m; ++i) {
-		bool isNull = true;
-		for (size_t j = 0; j < m; ++j) {
-			if (H[i][j] != 0)
-				isNull = false;
+
+	namespace rng = std::ranges;
+	auto is_null_row = [&](const auto &row) {
+		return rng::all_of(row | rng::views::take(m),
+		                   [](auto e) { return e == 0; });
+	};
+	auto null_rows = rng::views::filter(H, is_null_row);
+	for (const auto &row : null_rows) {
+		std::vector<T> null;
+		for (const auto &e : row | rng::views::drop(m)) {
+			null.push_back(e);
 		}
-		if (isNull) {
-			std::vector<T> null;
-			for (size_t j = m; j < m + n; ++j) {
-				null.push_back(H[i][j]);
-			}
-			nulls.push_back(null);
-		}
+		nulls.push_back(null);
 	}
+
 	return {nulls};
 }
 
