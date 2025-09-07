@@ -144,7 +144,7 @@ std::vector<std::vector<T>> RREF_Modular(std::vector<std::vector<T>> &A,
 	size_t row = 0;
 	for (size_t col = 0; col < n && row < m; ++col) {
 		// identify pivot and swap if necessary
-		// if no pivot, skip this column
+		// (if no pivot, skip this column)
 		auto pivot =
 		    std::ranges::find_if(mat | std::views::drop(row),
 		                         [&](auto r) { return r[col] % mod != 0; });
@@ -153,7 +153,7 @@ std::vector<std::vector<T>> RREF_Modular(std::vector<std::vector<T>> &A,
 		std::swap(*pivot, mat[row]);
 
 		// reduce this row
-		T inv = ModularInverse(mat[row][col] % mod, mod);
+		T inv = ModularInverse(PositiveMod(mat[row][col], mod), mod);
 		if (inv == -1)
 			continue;
 		for (size_t j = col; j < n; ++j) {
@@ -414,25 +414,25 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 		d *= m;
 
 #ifdef DEBUG
+	if (d == 0)
+		std::cout << "[LinSolveMod] Zero Determinant\n";
 	T d1 = d;
 	for (const auto &m : nonzero_moduli)
 		d1 /= m;
 	if (num_zeros > 0)
 		d1 /= Det(zero_block);
-	if (d1 != 1) {
+	if (d1 != 1)
 		std::cout << "[LinSolveMod] Possible Overflow!\n";
-	}
 #endif
 
 	std::vector<std::vector<T>> H1, H;
 
 	H1 = HNF_Modular(aug1, d);
 
-	if (num_zeros > 0) {
+	if (num_zeros > 0)
 		H = HNF_AddColumns(H1, augmat);
-	} else {
+	else
 		H = std::move(H1);
-	}
 
 	namespace rng = std::ranges;
 
@@ -543,6 +543,8 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 		d *= m;
 
 #ifdef DEBUG
+	if (d == 0)
+		std::cout << "[NullSpaceMultiMod] Zero Determinant\n";
 	T d1 = d;
 	for (const auto &m : nonzero_moduli)
 		d1 /= m;
@@ -557,7 +559,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 #ifdef DEBUG
 	std::cout << aug1 << "\n";
 	std::cout << "determinant: " << d << "\n";
-	std::cout << H1 << "\n" << FLINT_HNF_PernetStein(aug1) << "\n";
+	std::cout << H1 << "\n";
 #endif
 
 	if (num_zeros > 0) {
@@ -567,9 +569,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 	}
 
 #ifdef DEBUG
-	std::cout << "my hnf\n"
-	          << H << "\nflint hnf\n"
-	          << FLINT_HNF_PernetStein(augmat) << "\n";
+	std::cout << "my hnf\n" << H << "\n";
 #endif
 
 	std::vector<std::vector<T>> nulls;
