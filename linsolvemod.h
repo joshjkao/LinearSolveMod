@@ -94,8 +94,9 @@ std::vector<T> MatMulMod(const std::vector<std::vector<T>> &mat,
 		for (size_t j = 0; j < mat[0].size(); ++j) {
 			ret[i] += mat[i][j] * vec[j];
 		}
-		if (moduli[i] != 0)
-			ret[i] %= moduli[i];
+		if (moduli[i] == 0) continue;
+		ret[i] %= moduli[i];
+		if (ret[i] < 0) ret[i] += moduli[i];
 	}
 	return ret;
 }
@@ -397,14 +398,12 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 		for (size_t j = 0; j < aug1_m; ++j)
 			aug1[i][j] = augmat[i][j];
 
-	std::vector<std::vector<T>> zero_block;
+	std::vector<std::vector<T>> zero_block(num_zeros,
+	                                       std::vector<T>(num_zeros, 0));
 	for (size_t i = 0; i < num_zeros; ++i) {
-		std::vector<T> zero_block_row;
 		for (size_t j = 0; j < num_zeros; ++j) {
-			zero_block_row.push_back(
-			    augmat[i + n + 1 - num_zeros][j + m - num_zeros]);
+			zero_block[i][j] = augmat[i + n + 1 - num_zeros][j + m - num_zeros];
 		}
-		zero_block.push_back(zero_block_row);
 	}
 
 	T d = 1;
@@ -422,7 +421,7 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 	if (num_zeros > 0)
 		d1 /= Det(zero_block);
 	if (d1 != 1)
-		std::cout << "[LinSolveMod] Possible Overflow!\n";
+		std::cout << "[LinSolveMod] Possible Overflow\n";
 #endif
 
 	std::vector<std::vector<T>> H1, H;
@@ -436,31 +435,26 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 
 	namespace rng = std::ranges;
 
-	std::vector<T> soln;
 	auto is_soln_row = [&](const auto &row) {
 		return rng::all_of(row | rng::views::take(m),
 		                   [](auto e) { return e == 0; }) &&
 		       row[m] == 1;
 	};
 	auto soln_it = rng::find_if(H, is_soln_row);
+	std::vector<T> soln;
 	if (soln_it != H.end()) {
-		for (const auto &e : *soln_it | rng::views::drop(m + 1)) {
-			soln.push_back(e);
-		}
+		soln = *soln_it | rng::views::drop(m + 1) | rng::to<std::vector<T>>();
 	}
 
-	std::vector<std::vector<T>> nulls;
 	auto is_null_row = [&](const auto &row) {
 		return rng::all_of(row | rng::views::take(m + 1),
 		                   [](auto e) { return e == 0; });
 	};
 	auto null_rows = rng::views::filter(H, is_null_row);
+	std::vector<std::vector<T>> nulls;
 	for (const auto &row : null_rows) {
-		std::vector<T> null;
-		for (const auto &e : row | rng::views::drop(m + 1)) {
-			null.push_back(e);
-		}
-		nulls.push_back(null);
+		nulls.emplace_back(row | rng::views::drop(m + 1) |
+		                   rng::to<std::vector<T>>());
 	}
 
 	return {soln, nulls};
@@ -502,10 +496,9 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 	size_t augmat_n = m + n;
 	size_t aug1_m = augmat_m;
 
-	auto aug1 = std::vector<std::vector<T>>(aug1_m, std::vector<T>(aug1_m, 0));
+	std::vector<std::vector<T>> aug1(aug1_m, std::vector<T>(aug1_m, 0));
 
-	auto augmat =
-	    std::vector<std::vector<T>>(augmat_m, std::vector<T>(augmat_n, 0));
+	std::vector<std::vector<T>> augmat(augmat_m, std::vector<T>(augmat_n, 0));
 
 	// row join with mat transpose
 	for (size_t i = 0; i < m; ++i) {
@@ -526,14 +519,12 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 		for (size_t j = 0; j < aug1_m; ++j)
 			aug1[i][j] = augmat[i][j];
 
-	std::vector<std::vector<T>> zero_block;
+	std::vector<std::vector<T>> zero_block(num_zeros,
+	                                       std::vector<T>(num_zeros, 0));
 	for (size_t i = 0; i < num_zeros; ++i) {
-		std::vector<T> zero_block_row;
 		for (size_t j = 0; j < num_zeros; ++j) {
-			zero_block_row.push_back(
-			    augmat[i + n - num_zeros][j + m - num_zeros]);
+			zero_block[i][j] = augmat[i + n - num_zeros][j + m - num_zeros];
 		}
-		zero_block.push_back(zero_block_row);
 	}
 
 	T d = 1;
@@ -568,24 +559,16 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 		H = std::move(H1);
 	}
 
-#ifdef DEBUG
-	std::cout << "my hnf\n" << H << "\n";
-#endif
-
-	std::vector<std::vector<T>> nulls;
-
 	namespace rng = std::ranges;
 	auto is_null_row = [&](const auto &row) {
 		return rng::all_of(row | rng::views::take(m),
 		                   [](auto e) { return e == 0; });
 	};
 	auto null_rows = rng::views::filter(H, is_null_row);
+	std::vector<std::vector<T>> nulls;
 	for (const auto &row : null_rows) {
-		std::vector<T> null;
-		for (const auto &e : row | rng::views::drop(m)) {
-			null.push_back(e);
-		}
-		nulls.push_back(null);
+		nulls.emplace_back(row | rng::views::drop(m) |
+		                   rng::to<std::vector<T>>());
 	}
 
 	return {nulls};

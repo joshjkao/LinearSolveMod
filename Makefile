@@ -1,15 +1,13 @@
 CXX = g++-14
-CXXFLAGS = -Wall -Wextra -std=c++23
+CXXFLAGS = -Wall -Wextra -Wpedantic -std=c++23
 
 BUILD_DIR = build
-
-all: run
 
 example: example.cpp
 	$(CXX) $(CXXFLAGS) -o $(BUILD_DIR)/example example.cpp
 
 gtests: googletests.cpp
-	$(CXX) $(CXXFLAGS) -o $(BUILD_DIR)/gtests googletests.cpp -lgtest
+	$(CXX) $(CXXFLAGS) -I/opt/homebrew/include -L/opt/homebrew/lib -g -o $(BUILD_DIR)/gtests googletests.cpp -lgtest -lgtest_main
 
 debug: example.cpp
 	$(CXX) $(CXXFLAGS) -g -DDEBUG -o $(BUILD_DIR)/example example.cpp

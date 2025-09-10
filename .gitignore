@@ -5,4 +5,5 @@ old/
 .vscode/
 python/
 .cache/
+.CMakeLists.txt
 compile_commands.json
