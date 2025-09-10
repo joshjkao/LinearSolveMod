@@ -6,12 +6,13 @@ The example can be compiled and run with:
 ```
 mkdir build
 make run
+./build/example
 ```
 
 With [GoogleTest](https://github.com/google/googletest) installed, the unit tests can be run with:
 ```
-make gtests
-./build/gtests
+make tests
+./build/tests
 ```
 
 ## Code Interface
@@ -33,7 +34,7 @@ std::vector<std::vector<T>> NullSpaceMultiMod(
 );
 ```
 
-The first one is the reimplementation of Mathematica's LinearSolveMod function. The second one is a minor modification of the first.
+The former is a reimplementation of Mathematica's LinearSolveMod function. The second one is a minor modification of the first.
 
 ## How it works
 

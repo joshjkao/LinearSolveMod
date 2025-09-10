@@ -23,11 +23,11 @@ int main() {
 
     std::cout << "check the solution (should equal rhs):\n";
     if (soln.empty()) std::cout << "no solution\n";
-    else std::cout << LSM::MatMulMod(mat, soln, moduli) << "\n";
+    else std::cout << MatMulMod(mat, soln, moduli) << "\n";
 
     std::cout << "check the nulls (should equal zero):\n";
     for (const auto& null: nulls) {
-        std::cout << LSM::MatMulMod(mat, null, moduli) << "\n";
+        std::cout << MatMulMod(mat, null, moduli) << "\n";
     }
 
     mat = {{3,3,1,7},{0,1,0,4},{5,0,9,1},{5,3,1,1}};
@@ -41,7 +41,7 @@ int main() {
 
     std::cout << "check more nulls (should equal zero):\n";
     for (const auto& null: nulls) {
-        std::cout << LSM::MatMulMod(mat, null, moduli) << "\n";
+        std::cout << MatMulMod(mat, null, moduli) << "\n";
     }
 
 }
