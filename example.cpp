@@ -32,8 +32,6 @@ int main() {
 
     mat = {{3,3,1,7},{0,1,0,4},{5,0,9,1},{5,3,1,1}};
     moduli = {3,4,0,0};
-    // mat = {{3,3,1,7},{0,1,0,4},{5,0,2,1}};
-    // moduli = {3,0,0};
 
     nulls = LSM::NullSpaceMultiMod(mat, moduli);
 
@@ -43,5 +41,4 @@ int main() {
     for (const auto& null: nulls) {
         std::cout << MatMulMod(mat, null, moduli) << "\n";
     }
-
 }
