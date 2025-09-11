@@ -1,5 +1,5 @@
 #include "linsolvemod.h"
-// #include "util.h"
+#include "util.h"
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <random>
@@ -16,9 +16,9 @@ TEST(LINSOLVEMOD_BASIC, THREEBYTHREE) {
 	std::vector<arrtype> rhs = {0, 0, 1};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(null.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(null.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -28,9 +28,9 @@ TEST(LINSOLVEMOD_BASIC, THREEBYTHREE_LARGE) {
 	std::vector<arrtype> rhs = {0, 0, 1};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(null.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(null.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -41,9 +41,9 @@ TEST(LINSOLVEMOD_BASIC, THREEBYTHREE_LARGER) {
 	std::vector<arrtype> rhs = {10, 8, 1};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(null.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(null.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -54,9 +54,9 @@ TEST(LINSOLVEMOD_BASIC, THREEBYTHREE_NEGATIVES) {
 	std::vector<arrtype> rhs = {4, 0, 3};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(null.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(null.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -70,9 +70,9 @@ TEST(LINSOLVEMOD_BASIC, FIVEBYFIVE) {
 	std::vector<arrtype> moduli = {2, 2, 3, 1, 4};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(null.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(null.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -84,9 +84,9 @@ TEST(LINSOLVEMOD_BASIC, SIXBYSIX) {
 	std::vector<arrtype> moduli = {2, 2, 3, 1, 4, 3};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(null.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(null.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -112,10 +112,10 @@ TEST(LINSOLVEMOD_BASIC, EXTREME) {
 	}
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
 	if (!soln.empty()) {
-		EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+		EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	}
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(mat.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(mat.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -128,9 +128,9 @@ TEST(LINSOLVEMOD_RECTANGULAR, FOURBYSIX) {
 	std::vector<arrtype> moduli = {3, 5, 7, 10};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(mat.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(mat.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -143,9 +143,9 @@ TEST(LINSOLVEMOD_INFMOD, FOURBYSIX) {
 	std::vector<arrtype> moduli = {3, 5, 7, 0};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(mat.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(mat.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -157,9 +157,9 @@ TEST(LINSOLVEMOD_INFMOD, SIXBYSIX) {
 	std::vector<arrtype> moduli = {3, 5, 7, 0, 0, 0};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(mat.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(mat.size()), MatMulMod(mat, null, moduli));
 	}
 }
 
@@ -171,9 +171,9 @@ TEST(LINSOLVEMOD_INFMOD, SIXBYSIX_ZDET) {
 	std::vector<arrtype> moduli = {3, 5, 7, 0, 0, 0};
 
 	auto [soln, nulls] = LSM::LinSolveMod(mat, rhs, moduli);
-	EXPECT_EQ(rhs, LSM::MatMulMod(mat, soln, moduli));
+	EXPECT_EQ(rhs, MatMulMod(mat, soln, moduli));
 	for (const auto &null : nulls) {
-		EXPECT_EQ(NullVector(mat.size()), LSM::MatMulMod(mat, null, moduli));
+		EXPECT_EQ(NullVector(mat.size()), MatMulMod(mat, null, moduli));
 	}
 }
 

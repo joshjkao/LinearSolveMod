@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <concepts>
 #include <ranges>
 #include <vector>
 
@@ -16,32 +17,30 @@ namespace LinSolveMod {
 // Solves the integer system of linear equations mat*x = rhs
 // modulo the values in "moduli". Returns a solution to the system
 // and a list of vectors spanning the null space of mat.
-template <typename T>
+template <std::integral T>
 std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const std::vector<T> &moduli);
 
 // Returns a list of vectors spanning the null space of mat,
 // whos columns are vectors are defined modulo the values in "moduli".
-template <typename T>
+template <std::integral T>
 std::vector<std::vector<T>>
 NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
                   const std::vector<T> &moduli);
 
-
-template <typename T>
+template <std::integral T>
 std::pair<std::vector<T>, std::vector<std::vector<T>>>
 LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
             const std::vector<T> &moduli) {
-
-	size_t num_zeros = std::ranges::count(moduli, 0);
+	namespace rng = std::ranges;
+	size_t num_zeros = rng::count(moduli, 0);
 	size_t m = mat.size();
 	size_t n = mat[0].size();
 	size_t augmat_m = m + n + 1 - num_zeros;
 	size_t augmat_n = m + n + 1;
 
-	auto augmat =
-	    std::vector<std::vector<T>>(augmat_m, std::vector<T>(augmat_n, 0));
+	std::vector<std::vector<T>> augmat(augmat_m, std::vector<T>(augmat_n, 0));
 
 	// -rhs
 	for (size_t j = 0; j < m; ++j)
@@ -59,9 +58,18 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 	for (size_t i = 0; i < n + 1; ++i)
 		augmat[i][m + i] = 1;
 
-	auto H = FLINT_HNF_PernetStein(augmat);
+	std::vector<std::vector<T>> H;
 
-	namespace rng = std::ranges;
+	if (num_zeros > 0) {
+		H = FLINT_HNF_PernetStein(augmat);
+	} else {
+		T det = 1;
+		for (const auto &m :
+		     moduli | rng::views::filter([](auto m) { return m != 0; })) {
+			det *= m;
+		}
+		H = FLINT_HNF_Modular(augmat, det);
+	}
 
 	auto is_soln_row = [&](const auto &row) {
 		return rng::all_of(row | rng::views::take(m),
@@ -88,11 +96,12 @@ LinSolveMod(const std::vector<std::vector<T>> &mat, const std::vector<T> &rhs,
 	return {soln, nulls};
 }
 
-template <typename T>
+template <std::integral T>
 std::vector<std::vector<T>>
 NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
                   const std::vector<T> &moduli) {
-	size_t num_zeros = std::ranges::count(moduli, 0);
+	namespace rng = std::ranges;
+	size_t num_zeros = rng::count(moduli, 0);
 	size_t m = mat.size();
 	size_t n = mat[0].size();
 	size_t augmat_m = m + n - num_zeros;
@@ -115,9 +124,19 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 		augmat[i][m + i] = 1;
 	}
 
-	auto H = FLINT_HNF_PernetStein(augmat);
+	std::vector<std::vector<T>> H;
 
-	namespace rng = std::ranges;
+	if (num_zeros > 0) {
+		H = FLINT_HNF_PernetStein(augmat);
+	} else {
+		T det = 1;
+		for (const auto &m :
+		     moduli | rng::views::filter([](auto m) { return m != 0; })) {
+			det *= m;
+		}
+		H = FLINT_HNF_Modular(augmat, det);
+	}
+
 	auto is_null_row = [&](const auto &row) {
 		return rng::all_of(row | rng::views::take(m),
 		                   [](auto e) { return e == 0; });
@@ -129,7 +148,7 @@ NullSpaceMultiMod(const std::vector<std::vector<T>> &mat,
 		                   rng::to<std::vector<T>>());
 	}
 
-	return {nulls};
+	return nulls;
 }
 
 } // namespace LinSolveMod

@@ -1,7 +1,7 @@
 #include "linsolvemod.h"
 #include "util.h"
 
-using ttype = long;
+using ttype = int;
 namespace LSM = LinSolveMod;
 
 int main() {
